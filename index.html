@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Cognitive System V14</title>
+  <style>
+    body { margin:0; font-family:Arial; }
+
+    #panel{
+      position:fixed;
+      right:0;
+      top:0;
+      width:260px;
+      height:100%;
+      background:#f0f0f0;
+      padding:15px;
+    }
+
+    canvas{ display:block; background:#f9f9f9; }
+
+    .hidden{ display:none; }
+
+    .card{
+      position:fixed;
+      top:20%;
+      left:50%;
+      transform:translateX(-50%);
+      background:white;
+      padding:20px;
+      border:2px solid #333;
+      width:300px;
+    }
+
+    .toast{
+      position:fixed;
+      bottom:20px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#222;
+      color:#fff;
+      padding:10px 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<canvas id="graph"></canvas>
+
+<div id="panel">
+  <h3>🧠 Learning</h3>
+  <div id="learned"></div>
+
+  <h4>Next</h4>
+  <div id="next"></div>
+
+  <h4>Understanding</h4>
+  <div id="understanding"></div>
+</div>
+
+<div id="card" class="card hidden">
+  <h3 id="title"></h3>
+  <p id="content"></p>
+  <button onclick="closeCard()">Close</button>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+
+/* DATA */
+
+let nodes=[
+  {id:"loss",x:400,y:200,unlocked:true},
+  {id:"gd",x:600,y:300,unlocked:true},
+  {id:"lr",x:300,y:350,unlocked:false},
+  {id:"fail",x:500,y:450,unlocked:false}
+];
+
+let edges=[
+  ["loss","gd"],
+  ["lr","gd"],
+  ["gd","fail"]
+];
+
+let milestones=[
+  {
+    name:"Why AI makes mistakes",
+    requires:["loss"],
+    unlocked:false
+  },
+  {
+    name:"How AI improves",
+    requires:["loss","gd"],
+    unlocked:false
+  },
+  {
+    name:"Why training fails",
+    requires:["lr","fail"],
+    unlocked:false
+  }
+];
+
+let selected=null;
+
+/* GRAPH */
+
+let canvas=document.getElementById("graph");
+let ctx=canvas.getContext("2d");
+
+canvas.width=window.innerWidth-260;
+canvas.height=window.innerHeight;
+
+function get(id){ return nodes.find(n=>n.id===id); }
+
+/* DRAW */
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  edges.forEach(e=>{
+    let a=get(e[0]),b=get(e[1]);
+    if(!a.unlocked||!b.unlocked)return;
+
+    ctx.beginPath();
+    ctx.strokeStyle=(selected&&(selected===a.id||selected===b.id))?"black":"#ccc";
+    ctx.moveTo(a.x,a.y);
+    ctx.lineTo(b.x,b.y);
+    ctx.stroke();
+  });
+
+  nodes.forEach(n=>{
+    if(!n.unlocked)return;
+
+    ctx.beginPath();
+    ctx.arc(n.x,n.y,25,0,Math.PI*2);
+    ctx.fillStyle=(selected===n.id)?"#aaffaa":"#fff";
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle="black";
+    ctx.fillText(n.id,n.x-20,n.y+40);
+  });
+}
+
+/* CLICK */
+
+canvas.addEventListener("click",e=>{
+  let rect=canvas.getBoundingClientRect();
+  let x=e.clientX-rect.left,y=e.clientY-rect.top;
+
+  nodes.forEach(n=>{
+    let dx=x-n.x,dy=y-n.y;
+    if(Math.sqrt(dx*dx+dy*dy)<25 && n.unlocked){
+      selected=n.id;
+      openCard(n.id);
+
+      if(n.id==="gd") unlock("lr");
+      if(n.id==="lr") unlock("fail");
+    }
+  });
+
+  updateAll();
+});
+
+/* UNLOCK */
+
+function unlock(id){
+  let node=get(id);
+  if(node && !node.unlocked){
+    node.unlocked=true;
+  }
+}
+
+/* MILESTONE */
+
+function checkMilestones(){
+  milestones.forEach(m=>{
+    if(m.unlocked) return;
+
+    let ok = m.requires.every(r=>get(r).unlocked);
+
+    if(ok){
+      m.unlocked=true;
+      showToast("🎉 "+m.name);
+    }
+  });
+}
+
+/* PANEL */
+
+function updatePanel(){
+  let learned=document.getElementById("learned");
+  let next=document.getElementById("next");
+  let understanding=document.getElementById("understanding");
+
+  learned.innerHTML="";
+  next.innerHTML="";
+  understanding.innerHTML="";
+
+  nodes.forEach(n=>{
+    if(n.unlocked){
+      learned.innerHTML+="✔ "+n.id+"<br>";
+    }else{
+      let connected=edges.some(e=>
+        (e[0]===n.id && get(e[1]).unlocked) ||
+        (e[1]===n.id && get(e[0]).unlocked)
+      );
+
+      if(connected){
+        let btn=document.createElement("button");
+        btn.innerText=n.id;
+        btn.onclick=()=>{unlock(n.id);updateAll();}
+        next.appendChild(btn);
+      }
+    }
+  });
+
+  milestones.forEach(m=>{
+    if(m.unlocked){
+      understanding.innerHTML+="✔ "+m.name+"<br>";
+    }
+  });
+}
+
+/* TOAST */
+
+function showToast(text){
+  let t=document.getElementById("toast");
+  t.innerText=text;
+  t.classList.remove("hidden");
+
+  setTimeout(()=>t.classList.add("hidden"),2000);
+}
+
+/* CARD */
+
+function openCard(id){
+  let t=document.getElementById("title");
+  let c=document.getElementById("content");
+  let card=document.getElementById("card");
+
+  card.classList.remove("hidden");
+
+  t.innerText=id;
+
+  if(id==="loss") c.innerText="Error measurement.";
+  if(id==="gd") c.innerText="Optimization process.";
+  if(id==="lr") c.innerText="Step size control.";
+  if(id==="fail") c.innerText="Failure cases.";
+}
+
+function closeCard(){
+  document.getElementById("card").classList.add("hidden");
+}
+
+/* UPDATE */
+
+function updateAll(){
+  checkMilestones();
+  updatePanel();
+  draw();
+}
+
+/* INIT */
+
+updateAll();
+
+</script>
+
+</body>
+</html>
