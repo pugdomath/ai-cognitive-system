@@ -3,8 +3,9 @@
 <head>
   <title>AI Cognitive Explorer</title>
   <style>
-    body { margin:0; font-family:Arial; }
+    body { margin:0; font-family:Arial; text-align:center; }
     .hidden { display:none; }
+    button { padding:10px; margin:10px; }
 
     #panel{
       position:fixed;
@@ -14,6 +15,7 @@
       height:100%;
       background:#f0f0f0;
       padding:15px;
+      text-align:left;
     }
 
     canvas{ background:#f9f9f9; display:block; }
@@ -28,18 +30,30 @@
       border:2px solid #333;
       width:360px;
     }
-
-    button { margin:5px; padding:8px; }
   </style>
 </head>
 
 <body>
 
-<!-- HOME -->
+<!-- SCENE SELECT -->
 <div id="home">
-  <h1>AI Cognitive Explorer</h1>
-  <p>Understand how AI really works</p>
-  <button onclick="start()">Start</button>
+  <h1>Explore AI Through Real Problems</h1>
+
+  <button onclick="startScenario('image')">
+    🐱 AI says DOG ❌ → Why?
+  </button>
+
+  <button onclick="startScenario('text')">
+    💬 AI writes nonsense → Why?
+  </button>
+
+</div>
+
+<!-- SCENARIO -->
+<div id="scenario" class="hidden">
+  <h2 id="scenarioText"></h2>
+  <button onclick="goGraph()">Investigate</button>
+  <button onclick="goHome()">Back</button>
 </div>
 
 <!-- GRAPH -->
@@ -47,14 +61,13 @@
 
 <!-- PANEL -->
 <div id="panel" class="hidden">
+  <button onclick="goHome()">← Back to Scenarios</button>
+
   <h3>🧠 Learning</h3>
   <div id="learned"></div>
 
   <h4>Next</h4>
   <div id="next"></div>
-
-  <h4>Understanding</h4>
-  <div id="understanding"></div>
 </div>
 
 <!-- CARD -->
@@ -64,7 +77,6 @@
   <button onclick="setMode('why')">Why</button>
   <button onclick="setMode('how')">How</button>
   <button onclick="setMode('fail')">Failure</button>
-  <button onclick="setMode('math')">Math</button>
 
   <p id="content"></p>
 
@@ -83,12 +95,30 @@
 
 <script>
 
-/* NAV */
+/* NAVIGATION */
 
-function start(){
-  document.getElementById("home").style.display="none";
+function startScenario(type){
+  document.getElementById("home").classList.add("hidden");
+  document.getElementById("scenario").classList.remove("hidden");
+
+  let text="";
+  if(type==="image") text="AI sees a cat 🐱 but says DOG ❌";
+  if(type==="text") text="AI generates meaningless text ❌";
+
+  document.getElementById("scenarioText").innerText=text;
+}
+
+function goGraph(){
+  document.getElementById("scenario").classList.add("hidden");
   document.getElementById("graph").classList.remove("hidden");
   document.getElementById("panel").classList.remove("hidden");
+}
+
+function goHome(){
+  document.getElementById("home").classList.remove("hidden");
+  document.getElementById("scenario").classList.add("hidden");
+  document.getElementById("graph").classList.add("hidden");
+  document.getElementById("panel").classList.add("hidden");
 }
 
 /* GRAPH DATA */
@@ -167,13 +197,6 @@ canvas.addEventListener("click",e=>{
   draw();
 });
 
-/* UNLOCK */
-
-function unlock(id){
-  let node=get(id);
-  if(node) node.unlocked=true;
-}
-
 /* PANEL */
 
 function updatePanel(){
@@ -195,15 +218,20 @@ function updatePanel(){
   });
 }
 
+/* UNLOCK */
+
+function unlock(id){
+  let node=get(id);
+  if(node) node.unlocked=true;
+}
+
 /* CARD */
 
 let current=null;
 
 function openCard(id){
   current=id;
-
   document.getElementById("card").classList.remove("hidden");
-
   setMode("why");
 }
 
@@ -218,30 +246,27 @@ function setMode(mode){
   runBtn.classList.add("hidden");
 
   if(current==="loss"){
-    if(mode==="why") c.innerText="AI needs a way to know how wrong it is.";
-    if(mode==="how") c.innerText="Loss compares prediction vs truth.";
-    if(mode==="fail") c.innerText="Bad loss → wrong optimization.";
-    if(mode==="math") c.innerText="(prediction - truth)^2";
+    if(mode==="why") c.innerText="AI needs a way to measure mistakes.";
+    if(mode==="how") c.innerText="Compare prediction vs truth.";
+    if(mode==="fail") c.innerText="Bad loss leads to wrong learning.";
   }
 
   if(current==="gradient descent"){
-    if(mode==="why") c.innerText="We need a way to reduce loss.";
-    if(mode==="how") {
-      c.innerText="Move step by step downhill.";
+    if(mode==="why") c.innerText="We need a method to reduce loss.";
+    if(mode==="how"){
+      c.innerText="Move downhill step by step.";
       demo.classList.remove("hidden");
       lrBox.classList.remove("hidden");
       runBtn.classList.remove("hidden");
       drawGD();
     }
     if(mode==="fail") c.innerText="Too large steps → divergence.";
-    if(mode==="math") c.innerText="x = x - lr * gradient";
   }
 
   if(current==="learning rate"){
-    if(mode==="why") c.innerText="Controls speed of learning.";
+    if(mode==="why") c.innerText="Controls learning speed.";
     if(mode==="how") c.innerText="Small = slow, Large = unstable.";
     if(mode==="fail") c.innerText="Too big → overshoot.";
-    if(mode==="math") c.innerText="step size parameter";
   }
 }
 
@@ -249,9 +274,9 @@ function closeCard(){
   document.getElementById("card").classList.add("hidden");
 }
 
-/* GD DEMO（重点升级） */
+/* GD DEMO */
 
-let x=2; // 起点
+let x=2;
 let lr=0.1;
 let running=false;
 
@@ -262,14 +287,8 @@ document.getElementById("lr").oninput=function(){
   lr=parseFloat(this.value);
 };
 
-/* 非凸函数（多峰） */
-function f(x){
-  return Math.sin(2*x)+0.3*x*x;
-}
-
-function grad(x){
-  return 2*Math.cos(2*x)+0.6*x;
-}
+function f(x){ return Math.sin(2*x)+0.3*x*x; }
+function grad(x){ return 2*Math.cos(2*x)+0.6*x; }
 
 function drawGD(){
   dctx.clearRect(0,0,300,200);
@@ -293,11 +312,8 @@ function drawGD(){
 
 function step(){
   if(!running)return;
-
   x = x - lr * grad(x);
-
   drawGD();
-
   requestAnimationFrame(step);
 }
 
